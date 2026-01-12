@@ -1,2 +1,1 @@
-# ai-ads-sdk
-ai-ads-sdk
+# ai-ads-core
