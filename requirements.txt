@@ -1,0 +1,24 @@
+# AI Ads Core - Python Dependencies (Simplified)
+
+# Web Framework
+fastapi>=0.103.2
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# Settings Management
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# HTTP Client (for Apify)
+httpx>=0.26.0
+
+# Image Processing
+Pillow>=10.0.0
+
+# Embeddings & Matching
+sentence-transformers>=2.2.0
+numpy>=1.24.0,<2.0.0  # NumPy 2.x incompatible with torch/sentence-transformers
+torch>=2.0.0
+
+# Environment
+python-dotenv>=1.0.0

@@ -1,0 +1,5 @@
+name: Canon PIXMA TS3720 - Wireless All-in-One Home Office Printer, Copier, Scanner, Mobile Friendly, Black
+price: 69.95
+url: https://www.amazon.ca/Canon-PIXMA-TS3720-All-One/dp/B0D2RMZTJJ/ref=zg_bs_g_electronics_d_sccl_29/130-0773936-4142402?th=1
+
+Print, Copy, Scan: The PIXMA TS3720 is a true colour printer scanner copier all in one that is compact, versatile and easy-to-use with a 60 sheet rear tray that reduces the need to refill paper as frequently
