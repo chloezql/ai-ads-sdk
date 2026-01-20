@@ -1,0 +1,30 @@
+{
+  "name": "@aiads/sdk",
+  "version": "1.0.0",
+  "description": "AI Ads SDK - Context-aware ad serving without user tracking",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc && npm run bundle",
+    "bundle": "esbuild dist/index.js --bundle --format=iife --global-name=aiAds --outfile=dist/ai-ads.js --platform=browser",
+    "build:watch": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "advertising",
+    "ads",
+    "context-aware",
+    "privacy-friendly",
+    "no-tracking"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.27.2",
+    "typescript": "^5.3.3"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}

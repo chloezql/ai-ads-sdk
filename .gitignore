@@ -38,6 +38,10 @@ ENV/
 # Data
 data/
 *.json
+!apps/sdk/package.json
+!apps/sdk/package-lock.json
+!package.json
+!package-lock.json
 
 # Assets (except examples)
 assets/products/raw/*
