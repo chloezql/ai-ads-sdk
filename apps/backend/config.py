@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     API_PORT: int = 8000
     API_DEBUG: bool = True
     
+    def get_port(self) -> int:
+        """Get port from Railway PORT env var or fallback to API_PORT"""
+        import os
+        return int(os.getenv("PORT", self.API_PORT))
+    
     # Apify Configuration
     APIFY_API_TOKEN: Optional[str] = None
     APIFY_ACTOR_ID: str = "tropical_lease/web-context-extractor"

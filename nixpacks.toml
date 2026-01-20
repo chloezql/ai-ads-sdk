@@ -1,0 +1,20 @@
+# Nixpacks configuration for Railway
+# This ensures both Node.js and Python are available during build
+
+[phases.setup]
+nixPkgs = ["nodejs-18_x", "python311"]
+
+[phases.install]
+cmds = [
+  "cd apps/sdk && npm install",
+  "pip install -r requirements.txt"
+]
+
+[phases.build]
+cmds = [
+  "cd apps/sdk && npm run build"
+]
+
+[start]
+cmd = "cd apps/backend && python -m uvicorn main:app --host 0.0.0.0 --port $PORT"
+
