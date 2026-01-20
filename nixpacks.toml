@@ -7,7 +7,8 @@ nixPkgs = ["nodejs-18_x", "python311"]
 [phases.install]
 cmds = [
   "cd apps/sdk && npm install",
-  "pip install -r requirements.txt"
+  "python -m pip install --upgrade pip",
+  "python -m pip install -r requirements.txt"
 ]
 
 [phases.build]
