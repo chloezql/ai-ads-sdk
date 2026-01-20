@@ -22,3 +22,9 @@ torch>=2.0.0
 
 # Environment
 python-dotenv>=1.0.0
+
+# AI Image Editing
+fal-client>=0.10.0
+
+# Supabase Storage
+supabase>=2.0.0

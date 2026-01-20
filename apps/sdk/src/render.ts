@@ -21,9 +21,6 @@ export function renderProductAd(element: HTMLElement, product: MatchedProduct): 
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
     overflow: hidden;
   `;
 
@@ -49,16 +46,17 @@ export function renderProductAd(element: HTMLElement, product: MatchedProduct): 
 
   // Create image
   const img = document.createElement('img');
-  img.src = product.image_url;
+  // Use edited image if available, otherwise use original
+  img.src = product.edited_image_url || product.image_url;
   img.alt = product.name;
-  img.style.cssText = `
-    max-width: 100%;
-    max-height: 100%;
-    width: auto;
-    height: auto;
-    object-fit: contain;
-    display: block;
-  `;
+    img.style.cssText = `
+      max-width: 100%;
+      width: auto;
+      height: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    `;
   img.onerror = () => {
     // Show fallback if image fails to load
     img.style.display = 'none';
@@ -124,16 +122,14 @@ export function renderProducts(element: HTMLElement, products: MatchedProduct[])
     position: relative;
     display: flex;
     flex-direction: row;
-    gap: 8px;
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
-    padding: 8px;
-    box-sizing: border-box;
+    align-items: stretch;
+    gap: 4px;
     overflow: hidden;
   `;
-
-  // Render each product as a clickable image
+  
+  // Create all product items first, then set images to same height after they load
+  const productItems: Array<{ item: HTMLElement; link: HTMLElement; img: HTMLImageElement }> = [];
+  
   products.forEach((product, index) => {
     const productItem = document.createElement('div');
     productItem.className = `aiads-product-item aiads-product-${index}`;
@@ -141,12 +137,12 @@ export function renderProducts(element: HTMLElement, products: MatchedProduct[])
       flex: 1;
       position: relative;
       display: flex;
-      align-items: center;
+      align-items: flex-end;
       justify-content: center;
-      background: white;
-      border-radius: 4px;
       overflow: hidden;
       min-width: 0; /* Allows flex items to shrink below content size */
+      height: 100%; /* Ensure all items have same height */
+      background: transparent;
     `;
 
     // Create clickable link
@@ -159,12 +155,12 @@ export function renderProducts(element: HTMLElement, products: MatchedProduct[])
       width: 100%;
       height: 100%;
       display: flex;
-      align-items: center;
+      align-items: flex-end;
       justify-content: center;
-      padding: 4px;
-      box-sizing: border-box;
       cursor: pointer;
       transition: opacity 0.2s;
+      padding: 12px;
+      box-sizing: border-box;
     `;
 
     // Add hover effect
@@ -183,16 +179,21 @@ export function renderProducts(element: HTMLElement, products: MatchedProduct[])
 
     // Create image
     const img = document.createElement('img');
-    img.src = product.image_url;
+    // Use edited image if available, otherwise use original
+    img.src = product.edited_image_url || product.image_url;
     img.alt = product.name;
+    // Initially set to 60% of container height, will be adjusted to shortest after load
     img.style.cssText = `
-      max-width: 50%;
-      max-height: 50%;
+      max-width: 100%;
       width: auto;
-      height: auto;
+      height: 60%;
+      max-height: 60%;
       object-fit: contain;
       display: block;
     `;
+    
+    // Store reference for height adjustment after images load
+    productItems.push({ item: productItem, link: productLink, img: img });
     img.onerror = () => {
       // Show fallback if image fails to load
       img.style.display = 'none';
@@ -212,6 +213,68 @@ export function renderProducts(element: HTMLElement, products: MatchedProduct[])
     productItem.appendChild(productLink);
     adContainer.appendChild(productItem);
   });
+  
+  // After all images are added to DOM, wait for them to load and find shortest height
+  // Then set all images to that height for alignment
+  const adjustImageHeights = () => {
+    // Wait a bit for images to start rendering
+    setTimeout(() => {
+      let shortestHeight = Infinity;
+      
+      // Find the shortest image height
+      productItems.forEach(({ img }) => {
+        if (img.complete && img.naturalHeight > 0) {
+          const currentHeight = img.offsetHeight;
+          if (currentHeight > 0 && currentHeight < shortestHeight) {
+            shortestHeight = currentHeight;
+          }
+        }
+      });
+      
+      // If we found a shortest height, apply it to all images
+      if (shortestHeight !== Infinity && shortestHeight > 0) {
+        productItems.forEach(({ img }) => {
+          img.style.height = `${shortestHeight}px`;
+          img.style.maxHeight = `${shortestHeight}px`;
+        });
+        console.log(`[SDK] Set all images to same height: ${shortestHeight}px`);
+      } else {
+        // Fallback: use 60% of container height for all
+        const containerHeight = element.offsetHeight || 200;
+        const targetHeight = Math.floor(containerHeight * 0.6);
+        productItems.forEach(({ img }) => {
+          img.style.height = `${targetHeight}px`;
+          img.style.maxHeight = `${targetHeight}px`;
+        });
+      }
+    }, 100);
+  };
+  
+  // Adjust heights when images load
+  let loadedCount = 0;
+  productItems.forEach(({ img }) => {
+    if (img.complete) {
+      loadedCount++;
+    } else {
+      img.addEventListener('load', () => {
+        loadedCount++;
+        if (loadedCount === productItems.length) {
+          adjustImageHeights();
+        }
+      });
+      img.addEventListener('error', () => {
+        loadedCount++;
+        if (loadedCount === productItems.length) {
+          adjustImageHeights();
+        }
+      });
+    }
+  });
+  
+  // If all images are already loaded
+  if (loadedCount === productItems.length) {
+    adjustImageHeights();
+  }
 
   // Add "Ad" label
   const adLabel = document.createElement('div');

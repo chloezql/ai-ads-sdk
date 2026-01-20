@@ -23,6 +23,7 @@ export interface MatchedProduct {
   price: number | null;
   currency: string;
   image_url: string;
+  edited_image_url?: string;  // AI-edited image matching page styling
   landing_url: string;
   match_score: number;
 }

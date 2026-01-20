@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     APIFY_ACTOR_ID: str = "tropical_lease/web-context-extractor"
     APIFY_TIMEOUT_SECS: int = 300  # 5 minutes
     
+    # AI Image Editing (fal.ai) Configuration
+    FAL_KEY: Optional[str] = None
+    FAL_MODEL: str = "fal-ai/nano-banana/edit"
+    
+    # Supabase Storage Configuration
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_KEY: Optional[str] = None
+    
     # Storage Paths
     BASE_DIR: Path = Path(__file__).parent.parent.parent
     ASSETS_DIR: Path = BASE_DIR / "assets"

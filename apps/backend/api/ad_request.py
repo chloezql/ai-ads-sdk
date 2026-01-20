@@ -12,6 +12,8 @@ from context.extractor import context_extractor
 from context.enricher import context_enricher
 from embeddings.matcher import product_matcher
 from storage.products import product_storage
+from services.prompt_service import create_batch_prompts
+from services.ai_image_service import ai_image_service
 
 router = APIRouter()
 
@@ -129,12 +131,35 @@ async def extract_context(ad_request: AdRequest, request: Request) -> Dict[str, 
                     })
                 
                 print(f"[API] Matched {len(matched_products)} products")
+                
+                # Edit product images to match page styling
+                if matched_products and merged_context.get("has_enriched"):
+                    print(f"[API] Editing {len(matched_products)} product images to match page styling...")
+                    
+                    # Prepare page context for prompt generation
+                    page_context_for_prompts = {
+                        "topics": merged_context.get("topics", []),
+                        "keywords": merged_context.get("keywords", []),
+                        "visual_styles": merged_context.get("visual_styles", {}) or {}
+                    }
+                    
+                    # Generate prompts for each product
+                    prompts = create_batch_prompts(page_context_for_prompts, matched_products)
+                    
+                    # Edit all product images in parallel
+                    matched_products = await ai_image_service.edit_images_batch(
+                        matched_products,
+                        prompts,
+                        api_base_url
+                    )
+                    
+                    print(f"[API] Image editing complete for {len(matched_products)} products")
             else:
                 print("[API] No page embedding available for matching")
         else:
             print("[API] Page not enriched, skipping product matching")
         
-        # Return context with matched products
+        # Return context with matched products (with edited images if available)
         return {
             "success": True,
             "context": {
