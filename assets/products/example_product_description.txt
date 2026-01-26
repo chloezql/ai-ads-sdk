@@ -1,6 +1,0 @@
-name: Example Wireless Headphones
-price: 299.99
-url: https://example.com/products/headphones
-
-Premium noise-canceling wireless headphones with 30-hour battery life. Perfect for music lovers and professionals.
-

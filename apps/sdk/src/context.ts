@@ -1,6 +1,7 @@
 /**
  * Context extraction from publisher page
  */
+import { extractPersonaData } from './persona';
 
 export interface PageContext {
   url: string;
@@ -15,6 +16,15 @@ export interface EnvironmentContext {
   viewport_width: number;
   viewport_height: number;
   user_agent: string;
+  // Persona information (from external website, optional)
+  persona_data?: {
+    time_of_day?: 'day' | 'night';
+    location?: 'east' | 'west' | 'central' | 'unknown';
+    weather?: 'sunny' | 'rainy' | 'snowy';
+    temperature?: string;
+    os?: 'apple' | 'windows' | 'android' | 'other';
+    device_type?: 'mobile' | 'tablet' | 'desktop';
+  };
 }
 
 /**
@@ -79,11 +89,32 @@ export function extractEnvironmentContext(): EnvironmentContext {
     device_type = 'tablet';
   }
 
+  // Extract persona data from external website (URL params or session storage)
+  let persona_data: EnvironmentContext['persona_data'] | undefined;
+  
+  try {
+    const persona = extractPersonaData();
+    if (persona) {
+      persona_data = {
+        time_of_day: persona.time_of_day,
+        location: persona.location,
+        weather: persona.weather,
+        temperature: persona.temperature,
+        os: persona.os,
+        device_type: persona.device_type,
+      };
+    }
+  } catch (e) {
+    // Persona extraction failed, continue without it
+    console.warn('[Context] Could not extract persona data:', e);
+  }
+
   return {
     device_type,
     viewport_width: window.innerWidth,
     viewport_height: window.innerHeight,
     user_agent: navigator.userAgent,
+    persona_data,
   };
 }
 

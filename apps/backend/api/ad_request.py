@@ -132,6 +132,20 @@ async def extract_context(ad_request: AdRequest, request: Request) -> Dict[str, 
                 
                 print(f"[API] Matched {len(matched_products)} products")
                 
+                # Get persona from external website
+                persona = None
+                if ad_request.persona_data:
+                    # Use persona_data directly (from external website)
+                    persona = {
+                        "time_of_day": ad_request.persona_data.get("time_of_day"),
+                        "location": ad_request.persona_data.get("location"),
+                        "weather": ad_request.persona_data.get("weather"),
+                        "temperature": ad_request.persona_data.get("temperature"),
+                        "os": ad_request.persona_data.get("os"),
+                        "device_type": ad_request.persona_data.get("device_type"),
+                    }
+                    print(f"[API] Using persona data from external website: {persona.get('time_of_day')} {persona.get('location')} {persona.get('weather')} {persona.get('temperature')} {persona.get('os')} {persona.get('device_type')}")
+                
                 # Edit product images to match page styling
                 if matched_products and merged_context.get("has_enriched"):
                     print(f"[API] Editing {len(matched_products)} product images to match page styling...")
@@ -143,8 +157,8 @@ async def extract_context(ad_request: AdRequest, request: Request) -> Dict[str, 
                         "visual_styles": merged_context.get("visual_styles", {}) or {}
                     }
                     
-                    # Generate prompts for each product
-                    prompts = create_batch_prompts(page_context_for_prompts, matched_products)
+                    # Generate prompts for each product (with persona if available)
+                    prompts = create_batch_prompts(page_context_for_prompts, matched_products, persona)
                     
                     # Edit all product images in parallel
                     matched_products = await ai_image_service.edit_images_batch(

@@ -20,6 +20,9 @@ class AdRequest(BaseModel):
     viewport_height: Optional[int] = Field(None, description="Browser viewport height")
     user_agent: Optional[str] = Field(None, description="Browser user agent")
     
+    # Persona information (from external website)
+    persona_data: Optional[dict] = Field(None, description="Persona data from external website")
+    
     # Ad slot
     slot_id: str = Field(..., description="Ad slot identifier")
     slot_width: Optional[int] = Field(None, description="Ad slot width")

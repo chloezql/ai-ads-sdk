@@ -25,6 +25,7 @@ class ContextExtractor:
             viewport_width=ad_request.viewport_width,
             viewport_height=ad_request.viewport_height,
             user_agent=ad_request.user_agent,
+            persona_data=ad_request.persona_data,
             slot_id=ad_request.slot_id,
             slot_width=ad_request.slot_width,
             slot_height=ad_request.slot_height

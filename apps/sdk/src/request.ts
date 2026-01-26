@@ -14,6 +14,15 @@ export interface AdRequestPayload {
   slot_id: string;
   slot_width: number | null;
   slot_height: number | null;
+  // Persona information (from external website)
+  persona_data?: {
+    time_of_day?: 'day' | 'night';
+    location?: 'east' | 'west' | 'central' | 'unknown';
+    weather?: 'sunny' | 'rainy' | 'snowy';
+    temperature?: string;
+    os?: 'apple' | 'windows' | 'android' | 'other';
+    device_type?: 'mobile' | 'tablet' | 'desktop';
+  };
 }
 
 export interface MatchedProduct {
@@ -63,6 +72,7 @@ export async function requestContext(
     slot_id: slotId,
     slot_width: slotDimensions.width,
     slot_height: slotDimensions.height,
+    persona_data: envContext.persona_data,
   };
 
   try {
