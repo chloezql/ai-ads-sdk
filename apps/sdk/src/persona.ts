@@ -73,6 +73,11 @@ function storePersonaInStorage(persona: PersonaData): void {
  * Extract persona data from external website
  * Priority: URL parameters > Session storage
  * 
+ * Behavior:
+ * - If URL has persona params → use them and store in sessionStorage
+ * - If URL has no query params → clear sessionStorage (explicit removal of params)
+ * - SessionStorage is only used when explicitly set by external website, not as fallback
+ * 
  * @returns Persona data or null if not found
  */
 export function extractPersonaData(): PersonaData | null {
@@ -81,14 +86,24 @@ export function extractPersonaData(): PersonaData | null {
   if (urlPersona) {
     // Store in session storage for persistence across pages
     storePersonaInStorage(urlPersona);
+    console.log('[Persona] Using persona from URL params:', urlPersona);
     return urlPersona;
   }
   
-  // Fallback to session storage
-  const storagePersona = extractPersonaFromStorage();
-  if (storagePersona) {
-    return storagePersona;
+  // If URL has no persona params, clear sessionStorage
+  // This ensures that removing params from URL clears the persona data
+  try {
+    const hadStorage = sessionStorage.getItem('ai_ads_persona') !== null;
+    sessionStorage.removeItem('ai_ads_persona');
+    if (hadStorage) {
+      console.log('[Persona] Cleared sessionStorage (no persona params in URL)');
+    }
+  } catch (e) {
+    console.warn('[Persona] Error clearing sessionStorage:', e);
   }
   
+  // Don't use sessionStorage as fallback - only use it if explicitly set by external website
+  // This prevents stale persona data from being used when params are removed
+  console.log('[Persona] No persona data found (URL has no persona params)');
   return null;
 }
