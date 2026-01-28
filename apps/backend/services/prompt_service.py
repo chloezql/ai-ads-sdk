@@ -99,7 +99,8 @@ def create_editing_prompt(
     # Add critical rules section - highlighted and separated
     critical_rules = []
     critical_rules.append("CRITICAL RULE 1: Do NOT add any text, labels, captions, words, or written content to the image. The image must contain only visual elements - no text whatsoever.")
-    critical_rules.append("CRITICAL RULE 2: Make the product image feel native to the website's design aesthetic while maintaining the product's original form and structure. The environment should complement the product, not distract from it.")
+    critical_rules.append("CRITICAL RULE 2: Remove ALL white or plain backgrounds. The product must be placed in a complete, realistic environment with appropriate background, surfaces, and contextual elements that match the website's atmosphere and visual style. Never show the product floating on a white or empty background. The environment should feel cohesive with the website's design aesthetic.")
+    critical_rules.append("CRITICAL RULE 3: Make the product image feel native to the website's design aesthetic while maintaining the product's original form and structure. The environment should complement the product, not distract from it.")
 
     # Append critical rules with clear separation
     prompt += " " + " ".join(critical_rules)

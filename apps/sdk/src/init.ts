@@ -5,6 +5,7 @@
 import { extractPageContext, extractEnvironmentContext, getAdSlotDimensions } from './context';
 import { requestContext } from './request';
 import { renderProductAd, renderProducts, renderFallback } from './render';
+import { clearCacheForUrl, clearAllCache, getCacheStats } from './cache';
 
 export interface AiAdsConfig {
   apiEndpoint: string;
@@ -138,11 +139,39 @@ export class AiAdsSDK {
   async refreshAd(slotId: string): Promise<void> {
     this.log(`Refreshing ad for slot: ${slotId}`);
     
+    // Clear cache for current URL before refreshing
+    if (this.pageContext) {
+      clearCacheForUrl(this.pageContext.url);
+    }
+    
     // Re-extract context (in case page changed)
     this.pageContext = null;
     this.envContext = null;
     
     await this.loadAd(slotId);
+  }
+
+  /**
+   * Clear cache for a specific URL
+   */
+  clearCache(url: string): void {
+    clearCacheForUrl(url);
+    this.log(`Cache cleared for URL: ${url}`);
+  }
+
+  /**
+   * Clear all cached ads
+   */
+  clearAllCache(): void {
+    clearAllCache();
+    this.log('All cache cleared');
+  }
+
+  /**
+   * Get cache statistics
+   */
+  getCacheStats(): { count: number; urls: string[] } {
+    return getCacheStats();
   }
 }
 

@@ -61,5 +61,6 @@ if (typeof window !== 'undefined') {
 
 // Export for module usage
 export { AiAdsSDK, AiAdsConfig };
+export { clearCacheForUrl, clearAllCache, getCacheStats } from './cache';
 export default { init, getInstance };
 

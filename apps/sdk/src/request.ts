@@ -51,8 +51,11 @@ export interface ContextResponse {
   timestamp: string;
 }
 
+import { getCachedAds, setCachedAds } from './cache';
+
 /**
  * Request context and matched products from backend
+ * Checks cache first, then makes API request if not cached
  */
 export async function requestContext(
   apiEndpoint: string,
@@ -62,6 +65,13 @@ export async function requestContext(
   slotId: string,
   slotDimensions: { width: number | null; height: number | null }
 ): Promise<ContextResponse> {
+  // Check cache first
+  const cached = getCachedAds(pageContext.url, envContext.persona_data);
+  if (cached) {
+    console.log('[Request] Using cached ads, skipping API request');
+    return cached;
+  }
+
   const payload: AdRequestPayload = {
     publisher_id: publisherId,
     url: pageContext.url,
@@ -89,6 +99,12 @@ export async function requestContext(
     }
 
     const data: ContextResponse = await response.json();
+    
+    // Cache the response
+    if (data.success && data.matched_products && data.matched_products.length > 0) {
+      setCachedAds(pageContext.url, data, envContext.persona_data);
+    }
+    
     return data;
   } catch (error) {
     console.error('Error requesting context:', error);
