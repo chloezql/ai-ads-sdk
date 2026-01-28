@@ -4,6 +4,8 @@
 
 import { MatchedProduct } from './request';
 
+export type LayoutType = 'single' | 'vertical' | 'horizontal' | 'row';
+
 /**
  * Render product ad in slot - Simple image-only display
  */
@@ -102,9 +104,55 @@ export function renderProductAd(element: HTMLElement, product: MatchedProduct): 
 }
 
 /**
+ * Get layout type from element data attribute
+ */
+function getLayoutType(element: HTMLElement): LayoutType {
+  const layout = element.getAttribute('data-aiads-layout')?.toLowerCase();
+  if (layout === 'single' || layout === 'vertical' || layout === 'horizontal' || layout === 'row') {
+    return layout;
+  }
+  // Default to horizontal/row for backward compatibility
+  return 'horizontal';
+}
+
+/**
+ * Render products based on layout type
+ */
+export function renderProducts(element: HTMLElement, products: MatchedProduct[], layout?: LayoutType): void {
+  if (products.length === 0) {
+    renderFallback(element);
+    return;
+  }
+
+  const layoutType = layout || getLayoutType(element);
+
+  // Single product layout
+  if (layoutType === 'single') {
+    renderSingleProduct(element, products[0]);
+    return;
+  }
+
+  // Vertical layout
+  if (layoutType === 'vertical') {
+    renderVerticalProducts(element, products);
+    return;
+  }
+
+  // Horizontal/row layout (default)
+  renderHorizontalProducts(element, products);
+}
+
+/**
+ * Render a single product
+ */
+function renderSingleProduct(element: HTMLElement, product: MatchedProduct): void {
+  renderProductAd(element, product);
+}
+
+/**
  * Render multiple products in a row (up to 3 products)
  */
-export function renderProducts(element: HTMLElement, products: MatchedProduct[]): void {
+function renderHorizontalProducts(element: HTMLElement, products: MatchedProduct[]): void {
   if (products.length === 0) {
     renderFallback(element);
     return;
@@ -299,6 +347,142 @@ export function renderProducts(element: HTMLElement, products: MatchedProduct[])
   // Track impression
   console.log(`Rendered ${products.length} product ad(s) in row layout`);
   // In production, send impression event to backend
+}
+
+/**
+ * Render multiple products vertically (stacked)
+ */
+function renderVerticalProducts(element: HTMLElement, products: MatchedProduct[]): void {
+  if (products.length === 0) {
+    renderFallback(element);
+    return;
+  }
+
+  // Clear existing content
+  element.innerHTML = '';
+
+  // Create main ad container
+  const adContainer = document.createElement('div');
+  adContainer.className = 'aiads-container';
+  adContainer.style.cssText = `
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    overflow: hidden;
+  `;
+  
+  // Limit to 3 products for vertical layout
+  const productsToShow = products.slice(0, 3);
+  
+  // Create all product items
+  const productItems: Array<{ item: HTMLElement; link: HTMLElement; img: HTMLImageElement }> = [];
+  
+  productsToShow.forEach((product, index) => {
+    const productItem = document.createElement('div');
+    productItem.className = `aiads-product-item aiads-product-${index}`;
+    productItem.style.cssText = `
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      min-height: 0;
+      width: 100%;
+      background: transparent;
+    `;
+
+    // Create clickable link
+    const productLink = document.createElement('a');
+    productLink.href = product.landing_url;
+    productLink.target = '_blank';
+    productLink.rel = 'noopener noreferrer sponsored';
+    productLink.style.cssText = `
+      text-decoration: none;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      padding: 8px;
+      box-sizing: border-box;
+    `;
+
+    // Add hover effect
+    productLink.addEventListener('mouseenter', () => {
+      productLink.style.opacity = '0.8';
+    });
+    productLink.addEventListener('mouseleave', () => {
+      productLink.style.opacity = '1';
+    });
+
+    // Track click
+    productLink.addEventListener('click', () => {
+      console.log(`Product ${index + 1} clicked: ${product.id} -> ${product.landing_url}`);
+    });
+
+    // Create image
+    const img = document.createElement('img');
+    img.src = product.edited_image_url || product.image_url;
+    img.alt = product.name;
+    img.style.cssText = `
+      max-width: 100%;
+      width: auto;
+      max-height: 100%;
+      height: auto;
+      object-fit: contain;
+      display: block;
+    `;
+    
+    productItems.push({ item: productItem, link: productLink, img: img });
+    
+    img.onerror = () => {
+      img.style.display = 'none';
+      const fallbackText = document.createElement('div');
+      fallbackText.textContent = product.name.substring(0, 20) + '...';
+      fallbackText.style.cssText = `
+        padding: 8px;
+        text-align: center;
+        color: #6c757d;
+        font-size: 11px;
+        word-break: break-word;
+      `;
+      productLink.appendChild(fallbackText);
+    };
+
+    productLink.appendChild(img);
+    productItem.appendChild(productLink);
+    adContainer.appendChild(productItem);
+  });
+
+  // Add "Ad" label
+  const adLabel = document.createElement('div');
+  adLabel.textContent = 'Ad';
+  adLabel.style.cssText = `
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    z-index: 10;
+  `;
+
+  adContainer.appendChild(adLabel);
+  element.appendChild(adContainer);
+
+  // Track impression
+  console.log(`Rendered ${productsToShow.length} product ad(s) in vertical layout`);
 }
 
 /**
