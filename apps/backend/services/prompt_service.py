@@ -57,10 +57,11 @@ def create_editing_prompt(
             persona_context = ", ".join(persona_details)
             prompt_parts.append(f"PERSONALIZATION - User Environment: {persona_context}. Adjust the image lighting, atmosphere, color temperature, and mood to authentically reflect this specific user's environment. The time of day should influence lighting (brightness, shadows, natural vs artificial light). The weather should affect the atmosphere and color palette (temperature, saturation, environmental elements). The temperature should influence color temperature and overall mood (warm tones for hot, cool tones for cold). The location should inform regional context and settings. The device type may affect viewing optimization. Create a personalized visual experience that is distinctly different from other users viewing the same product.")
     
-    # Add topics
+    # Add topics and environment generation
     if topics:
         topics_str = ", ".join(topics)
         prompt_parts.append(f"Match the page topics: {topics_str}.")
+        prompt_parts.append(f"ENVIRONMENT GENERATION - Create a realistic, contextual environment/scene that relates to these topics ({topics_str}). Place the {product_name} naturally within this environment. For example: if the page is about home/office, show the product in a desk, table, or room setting; if about outdoor/camping, show it in a natural outdoor setting; if about technology, show it in a modern tech environment. The environment should enhance the product presentation and feel authentic to the page's theme. Include relevant background elements, surfaces, and contextual objects that make sense for the topics.")
     
     # Add visual styles
     if visual_styles:
@@ -97,10 +98,9 @@ def create_editing_prompt(
     
     # Add critical rules section - highlighted and separated
     critical_rules = []
-    critical_rules.append("CRITICAL RULE 1: Preserve the product's core appearance and functionality. Only adjust colors, lighting, and styling to match the website. Do NOT change the product itself.")
-    critical_rules.append("CRITICAL RULE 2: Do NOT add any text, labels, captions, words, or written content to the image. The image must contain only visual elements - no text whatsoever.")
-    critical_rules.append("CRITICAL RULE 3: Make the product image feel native to the website's design aesthetic while maintaining the product's original form and structure.")
-    
+    critical_rules.append("CRITICAL RULE 1: Do NOT add any text, labels, captions, words, or written content to the image. The image must contain only visual elements - no text whatsoever.")
+    critical_rules.append("CRITICAL RULE 2: Make the product image feel native to the website's design aesthetic while maintaining the product's original form and structure. The environment should complement the product, not distract from it.")
+
     # Append critical rules with clear separation
     prompt += " " + " ".join(critical_rules)
     
