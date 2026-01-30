@@ -4,7 +4,6 @@ Edits product images to match website styling
 """
 import os
 import hashlib
-import json
 from typing import List, Dict, Any, Optional
 import asyncio
 
@@ -271,6 +270,154 @@ class AIImageService:
             if cache_key in _editing_in_progress:
                 del _editing_in_progress[cache_key]
     
+    async def edit_multi_product_image(
+        self,
+        products: List[Dict[str, Any]],
+        prompt: str,
+        api_base_url: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Edit multiple product images into one combined image
+        
+        Args:
+            products: List of product dicts with 'image_url' (should match MULTI_PRODUCT_COUNT)
+            prompt: Prompt for combining products
+            api_base_url: Base URL to convert relative image_urls to absolute
+        
+        Returns:
+            Dict with edited_image_url and product info, or None if failed
+        """
+        if not self.enabled:
+            print("[AIImage] Editing disabled, skipping multi-product image")
+            return None
+        
+        multi_product_count = settings.MULTI_PRODUCT_COUNT
+        if len(products) != multi_product_count:
+            print(f"[AIImage] ⚠️  edit_multi_product_image expects {multi_product_count} products, got {len(products)}")
+            return None
+        
+        try:
+            # Get both image URLs
+            image_urls = []
+            for i, product in enumerate(products):
+                image_url = product.get("image_url")
+                if not image_url:
+                    print(f"[AIImage] ⚠️  Product {i + 1} ({product.get('name', 'unknown')}) has no image_url")
+                    return None
+                
+                # Convert to absolute URL if needed
+                is_local_file = os.path.exists(image_url) and os.path.isfile(image_url)
+                is_localhost_url = (
+                    image_url.startswith('http://localhost') or 
+                    image_url.startswith('https://localhost') or
+                    image_url.startswith('http://127.0.0.1') or
+                    image_url.startswith('https://127.0.0.1')
+                )
+                
+                if is_local_file:
+                    filename = os.path.basename(image_url)
+                    uploaded_url = await file_upload_service.upload_file_from_path(image_url, filename)
+                    if not uploaded_url:
+                        return None
+                    image_urls.append(uploaded_url)
+                elif is_localhost_url:
+                    filename = os.path.basename(image_url) or "image.jpg"
+                    uploaded_url = await file_upload_service.upload_file_from_url(image_url, filename)
+                    if not uploaded_url:
+                        return None
+                    image_urls.append(uploaded_url)
+                else:
+                    absolute_image_url = image_url
+                    if not image_url.startswith('http://') and not image_url.startswith('https://'):
+                        if api_base_url:
+                            absolute_image_url = f"{api_base_url.rstrip('/')}{image_url}"
+                        else:
+                            return None
+                    image_urls.append(absolute_image_url)
+            
+            product_names = [p.get('name', f'Product {i+1}') for i, p in enumerate(products)]
+            print(f"[AIImage] 🖼️  Combining {len(products)} products into one image: {', '.join(product_names)}")
+            print(f"[AIImage] 📝 Prompt: {prompt[:80]}...")
+            
+            # Generate cache key from both images and prompt
+            cache_data = f"{'::'.join(sorted(image_urls))}::{prompt}"
+            cache_key = hashlib.md5(cache_data.encode()).hexdigest()
+            
+            # Check cache
+            if cache_key in _edited_image_cache:
+                cached_url = _edited_image_cache[cache_key]
+                print(f"[AIImage] ✅ Using cached multi-product image: {cached_url[:60]}...")
+                return {
+                    "edited_image_url": cached_url,
+                    "products": products,
+                    "status": "cached"
+                }
+            
+            # Submit job with both images
+            handler = await fal_client.submit_async(
+                self.model,
+                arguments={
+                    "prompt": prompt,
+                    "image_urls": image_urls,  # Both product images
+                    "num_images": 1,
+                    "output_format": "webp"
+                }
+            )
+            
+            request_id = handler.request_id
+            print(f"[AIImage] 📤 Submitted multi-product job: {request_id}")
+            
+            # Poll for status
+            async for status in handler.iter_events(with_logs=True, interval=2.0):
+                if hasattr(status, 'logs') and status.logs:
+                    for log in status.logs:
+                        if isinstance(log, dict) and log.get("message"):
+                            print(f"[AIImage] 📊 {log['message']}")
+            
+            # Get result
+            result = await handler.get()
+            
+            # Extract generated image URL
+            generated_images = []
+            if isinstance(result, dict):
+                generated_images = (
+                    result.get("images") or 
+                    result.get("data", {}).get("images") or 
+                    result.get("output", {}).get("images") or
+                    []
+                )
+            elif hasattr(result, "images"):
+                img_data = result.images
+                generated_images = img_data if isinstance(img_data, list) else [img_data]
+            
+            if not generated_images or len(generated_images) == 0:
+                print(f"[AIImage] ❌ No images returned from fal.ai")
+                return None
+            
+            first_image = generated_images[0]
+            edited_url = first_image.get("url") if isinstance(first_image, dict) else getattr(first_image, "url", None)
+            
+            if not edited_url:
+                print(f"[AIImage] ❌ No URL in result from fal.ai")
+                return None
+            
+            print(f"[AIImage] ✅ Successfully created multi-product image: {edited_url[:60]}...")
+            
+            # Cache the result
+            _edited_image_cache[cache_key] = edited_url
+            
+            return {
+                "edited_image_url": edited_url,
+                "products": products,
+                "status": "completed"
+            }
+            
+        except Exception as e:
+            print(f"[AIImage] ❌ Error creating multi-product image: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
     async def edit_images_batch(
         self,
         products: List[Dict[str, Any]],
@@ -279,28 +426,144 @@ class AIImageService:
     ) -> List[Dict[str, Any]]:
         """
         Edit multiple product images in parallel using asyncio.gather
+        Handles mixed case: first N products combined into one image, rest as individual images
         
         Args:
             products: List of product dicts with 'image_url'
-            prompts: List of prompts (one per product)
+            prompts: List of prompts (1 for multi-product, then 1 per remaining product)
             api_base_url: Base URL to convert relative image_urls to absolute
         
         Returns:
-            List of results with edited_image_url added to each product
+            List of results with edited_image_url:
+            - 1 result for multi-product image (with all N products' info)
+            - 1 result per remaining product (individual images)
         """
         if not self.enabled:
             print("[AIImage] Editing disabled, returning original images")
             return products
         
-        if len(products) != len(prompts):
-            print(f"[AIImage] Mismatch: {len(products)} products but {len(prompts)} prompts")
+        multi_product_count = settings.MULTI_PRODUCT_COUNT
+        
+        # Validate prompts count
+        # Expected: 1 prompt for multi-product (first N products) + 1 prompt per remaining product
+        expected_prompts = 0
+        if len(products) >= multi_product_count:
+            expected_prompts = 1 + (len(products) - multi_product_count)  # 1 multi-product + remaining individual
+        else:
+            expected_prompts = len(products)  # All individual
+        
+        if len(prompts) != expected_prompts:
+            print(f"[AIImage] Mismatch: {len(products)} products but {len(prompts)} prompts (expected {expected_prompts})")
             return products
         
-        print(f"[AIImage] 🚀 Starting parallel editing of {len(products)} product images...")
+        # Check if we have multi-product case (first prompt is for multi-product)
+        if len(products) >= multi_product_count and len(prompts) > 0:
+            # First N products go into multi-product image
+            multi_products = products[:multi_product_count]
+            multi_prompt = prompts[0]
+            
+            # Remaining products are individual
+            remaining_products = products[multi_product_count:]
+            remaining_prompts = prompts[1:]
+            
+            results = []
+            
+            # Process multi-product image
+            if multi_products and multi_prompt:
+                print(f"[AIImage] 🚀 Creating multi-product image from {len(multi_products)} products...")
+                multi_result = await self.edit_multi_product_image(multi_products, multi_prompt, api_base_url)
+                
+                if multi_result and multi_result.get("edited_image_url"):
+                    # Create combined result for multi-product image
+                    product_names = [p.get("name", f"Product {i+1}") for i, p in enumerate(multi_products)]
+                    product_ids = [p["id"] for p in multi_products]
+                    product_descriptions = [p.get("description", "") for p in multi_products]
+                    
+                    combined_result = {
+                        "id": "_".join(product_ids),
+                        "name": " & ".join(product_names),
+                        "description": " | ".join([d for d in product_descriptions if d]),
+                        "price": multi_products[0].get("price"),
+                        "currency": multi_products[0].get("currency", "USD"),
+                        "edited_image_url": multi_result["edited_image_url"],
+                        "match_score": max([p.get("match_score", 0) for p in multi_products]),
+                        "is_multi_product": True,
+                        "products": [
+                            {
+                                "id": p["id"],
+                                "name": p.get("name", f"Product {i+1}"),
+                                "image_url": p.get("image_url"),
+                                "landing_url": p.get("landing_url")
+                            }
+                            for i, p in enumerate(multi_products)
+                        ]
+                    }
+                    
+                    # Add individual image_url and landing_url fields
+                    for i, product in enumerate(multi_products):
+                        if i == 0:
+                            combined_result["image_url"] = product.get("image_url")
+                            combined_result["landing_url"] = product.get("landing_url")
+                        else:
+                            combined_result[f"image_url_{i+1}"] = product.get("image_url")
+                            combined_result[f"landing_url_{i+1}"] = product.get("landing_url")
+                    
+                    results.append(combined_result)
+                    print(f"[AIImage] ✅ Multi-product image created successfully")
+                else:
+                    # Fallback: add original products if multi-product editing failed
+                    results.extend(multi_products)
+            
+            # Process remaining individual products
+            if remaining_products and remaining_prompts:
+                print(f"[AIImage] 🚀 Processing {len(remaining_products)} individual product images...")
+                import time
+                start_time = time.time()
+                
+                # Create tasks for individual products
+                tasks = []
+                product_indices = []
+                
+                for i, (product, prompt) in enumerate(zip(remaining_products, remaining_prompts)):
+                    image_url = product.get("image_url")
+                    if not image_url:
+                        print(f"[AIImage] ⚠️  Product {i + 1} ({product.get('name', 'unknown')}) has no image_url, skipping")
+                        continue
+                    
+                    task = self.edit_single_image(image_url, prompt, i, api_base_url)
+                    tasks.append(task)
+                    product_indices.append(i)
+                
+                if tasks:
+                    # Execute individual product edits in parallel
+                    individual_results = await asyncio.gather(*tasks, return_exceptions=True)
+                    
+                    for idx, (original_idx, result) in enumerate(zip(product_indices, individual_results)):
+                        product = remaining_products[original_idx].copy()
+                        
+                        if isinstance(result, Exception):
+                            print(f"[AIImage] ❌ Error editing product {original_idx + 1} ({product.get('name', 'unknown')}): {result}")
+                            results.append(product)
+                        elif result and result.get("edited_image_url"):
+                            product["edited_image_url"] = result["edited_image_url"]
+                            results.append(product)
+                        else:
+                            print(f"[AIImage] ⚠️  No edited image returned for product {original_idx + 1} ({product.get('name', 'unknown')})")
+                            results.append(product)
+                    
+                    elapsed_time = time.time() - start_time
+                    print(f"[AIImage] ✅ Individual product editing complete: {len([r for r in results if r.get('edited_image_url')])} images in {elapsed_time:.2f}s")
+                else:
+                    results.extend(remaining_products)
+            
+            return results if results else products
+        
+        # Fallback: handle case where we don't have enough products for multi-product
+        # Process all as individual products
+        print(f"[AIImage] 🚀 Processing {len(products)} products as individual images...")
         import time
         start_time = time.time()
         
-        # Create all async tasks for parallel execution
         tasks = []
         product_indices = []
         
@@ -310,7 +573,6 @@ class AIImageService:
                 print(f"[AIImage] ⚠️  Product {i + 1} ({product.get('name', 'unknown')}) has no image_url, skipping")
                 continue
             
-            # Create async task - each will run in parallel
             task = self.edit_single_image(image_url, prompt, i, api_base_url)
             tasks.append(task)
             product_indices.append(i)
@@ -321,29 +583,25 @@ class AIImageService:
         
         print(f"[AIImage] 📦 Executing {len(tasks)} image editing tasks in parallel...")
         
-        # Execute all tasks in parallel - this is the key for parallelism
-        # asyncio.gather runs all tasks concurrently
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Execute all tasks in parallel
+        edit_results = await asyncio.gather(*tasks, return_exceptions=True)
         
-        # Process results and update products
+        # Process results
         edited_products = []
         success_count = 0
         
-        for idx, (original_idx, result) in enumerate(zip(product_indices, results)):
+        for idx, (original_idx, result) in enumerate(zip(product_indices, edit_results)):
             product = products[original_idx].copy()
             
             if isinstance(result, Exception):
                 print(f"[AIImage] ❌ Error editing product {original_idx + 1} ({product.get('name', 'unknown')}): {result}")
-                # Keep original image if editing fails
                 edited_products.append(product)
             elif result and result.get("edited_image_url"):
                 product["edited_image_url"] = result["edited_image_url"]
-                product["original_image_url"] = product.get("image_url")  # Keep original for reference
                 edited_products.append(product)
                 success_count += 1
             else:
                 print(f"[AIImage] ⚠️  No edited image returned for product {original_idx + 1} ({product.get('name', 'unknown')})")
-                # Keep original image if editing fails
                 edited_products.append(product)
         
         elapsed_time = time.time() - start_time

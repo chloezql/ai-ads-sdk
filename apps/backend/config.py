@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     # Cache Configuration
     PAGE_CONTEXT_CACHE_TTL: int = 86400  # 24 hours in seconds
     
+    # Multi-Product Image Configuration
+    MULTI_PRODUCT_COUNT: int = 2  # Number of products to combine in one image (default: 2)
+    
     class Config:
         # Look for .env in project root (3 levels up from this file)
         env_file = str(Path(__file__).parent.parent.parent / ".env")

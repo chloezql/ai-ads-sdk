@@ -3,6 +3,7 @@ Prompt generation service for AI image editing
 Creates prompts based on page context (topics, keywords, visual_styles) to match web styling
 """
 from typing import Dict, Any, List, Optional
+from config import settings
 
 
 def create_editing_prompt(
@@ -108,6 +109,118 @@ def create_editing_prompt(
     return prompt
 
 
+def create_multi_product_prompt(
+    page_context: Dict[str, Any],
+    products: List[Dict[str, Any]],
+    persona: Optional[Dict[str, Any]] = None
+) -> str:
+    """
+    Create a prompt for combining multiple products into one image
+    
+    Args:
+        page_context: Page context containing topics, keywords, visual_styles
+        products: List of product dicts (should match MULTI_PRODUCT_COUNT)
+        persona: Optional persona information for personalization
+    
+    Returns:
+        Formatted prompt string for combining products
+    """
+    multi_product_count = settings.MULTI_PRODUCT_COUNT
+    if len(products) != multi_product_count:
+        raise ValueError(f"create_multi_product_prompt expects exactly {multi_product_count} products, got {len(products)}")
+    
+    topics = page_context.get("topics", [])
+    keywords = page_context.get("keywords", [])
+    visual_styles = page_context.get("visual_styles", {}) or {}
+    
+    # Get product names
+    product_names = [product.get("name", f"Product {i+1}") for i, product in enumerate(products)]
+    product_names_str = ", ".join(product_names[:-1]) + f" and {product_names[-1]}" if len(product_names) > 1 else product_names[0]
+    
+    # Build prompt
+    prompt_parts = []
+    
+    # Base instruction for combining products
+    prompt_parts.append(f"Combine these {len(products)} products ({product_names_str}) into a single, cohesive image that matches the website's visual style and theme. All products should be naturally placed together in the same environment.")
+    
+    # Add persona context
+    if persona:
+        time_of_day = persona.get('time_of_day')
+        location = persona.get('location')
+        weather = persona.get('weather')
+        temperature = persona.get('temperature')
+        os = persona.get('os')
+        device_type = persona.get('device_type')
+        
+        persona_details = []
+        if time_of_day:
+            persona_details.append(f"Time of day: {time_of_day}")
+        if location:
+            persona_details.append(f"Location: {location}")
+        if weather:
+            persona_details.append(f"Weather: {weather}")
+        if temperature:
+            persona_details.append(f"Temperature: {temperature}")
+        if os:
+            persona_details.append(f"OS: {os}")
+        if device_type:
+            persona_details.append(f"Device: {device_type}")
+        
+        if persona_details:
+            persona_context = ", ".join(persona_details)
+            prompt_parts.append(f"PERSONALIZATION - User Environment: {persona_context}. Adjust the image lighting, atmosphere, color temperature, and mood to authentically reflect this specific user's environment.")
+    
+    # Add topics and environment
+    if topics:
+        topics_str = ", ".join(topics)
+        prompt_parts.append(f"Match the page topics: {topics_str}.")
+        products_list = ", ".join([product.get("name", f"Product {i+1}") for i, product in enumerate(products)])
+        prompt_parts.append(f"ENVIRONMENT GENERATION - Create a realistic, contextual environment/scene that relates to these topics ({topics_str}). Place all products ({products_list}) naturally together within this environment. The products should be arranged in a way that makes sense contextually and visually. The environment should enhance the product presentation and feel authentic to the page's theme.")
+    
+    # Add visual styles
+    if visual_styles:
+        style_parts = []
+        
+        if visual_styles.get("theme"):
+            style_parts.append(f"theme: {visual_styles['theme']}")
+        
+        if visual_styles.get("backgroundColor"):
+            style_parts.append(f"background color: {visual_styles['backgroundColor']}")
+        
+        if visual_styles.get("primaryColor"):
+            style_parts.append(f"primary color: {visual_styles['primaryColor']}")
+        
+        if visual_styles.get("fontFamily"):
+            style_parts.append(f"font style: {visual_styles['fontFamily']}")
+        
+        if style_parts:
+            prompt_parts.append(f"Apply visual styles: {', '.join(style_parts)}.")
+        
+        if visual_styles.get("accentColors"):
+            accent_colors = ", ".join(visual_styles["accentColors"][:5])
+            prompt_parts.append(f"CRITICAL - Accent Colors: Use these accent colors prominently throughout the image: {accent_colors}.")
+    
+    # Add keywords
+    if keywords:
+        relevant_keywords = keywords[:10]
+        keywords_str = ", ".join(relevant_keywords)
+        prompt_parts.append(f"Incorporate these style elements: {keywords_str}.")
+    
+    # Combine regular instructions
+    prompt = " ".join(prompt_parts)
+    
+    # Add critical rules
+    critical_rules = []
+    critical_rules.append("CRITICAL RULE 1: Do NOT add any text, labels, captions, words, or written content to the image. The image must contain only visual elements - no text whatsoever.")
+    critical_rules.append(f"CRITICAL RULE 2: Remove ALL white or plain backgrounds. All {len(products)} products must be placed together in a complete, realistic environment with appropriate background, surfaces, and contextual elements that match the website's atmosphere and visual style.")
+    critical_rules.append(f"CRITICAL RULE 3: All {len(products)} products should be clearly visible and well-integrated into the scene. They should complement each other visually and contextually.")
+    critical_rules.append(f"CRITICAL RULE 4: Preserve the original appearance and functionality of all {len(products)} products. Only adjust colors, lighting, and styling to match the website.")
+    
+    prompt += " " + " ".join(critical_rules)
+    
+    return prompt
+
+
 def create_batch_prompts(
     page_context: Dict[str, Any],
     products: List[Dict[str, Any]],
@@ -115,6 +228,8 @@ def create_batch_prompts(
 ) -> List[str]:
     """
     Create prompts for multiple products
+    Takes first MULTI_PRODUCT_COUNT products and combines them into one prompt.
+    Remaining products each get their own individual prompt.
     
     Args:
         page_context: Page context
@@ -122,10 +237,31 @@ def create_batch_prompts(
         persona: Optional persona information for personalization
     
     Returns:
-        List of prompts, one per product
+        List of prompts:
+        - 1 prompt for first MULTI_PRODUCT_COUNT products (combined)
+        - 1 prompt per remaining product (individual)
     """
-    return [
-        create_editing_prompt(page_context, product.get("name", "Product"), persona)
-        for product in products
-    ]
+    if not products:
+        return []
+    
+    multi_product_count = settings.MULTI_PRODUCT_COUNT
+    prompts = []
+    
+    # Take first N products for multi-product image
+    if len(products) >= multi_product_count:
+        multi_products = products[:multi_product_count]
+        remaining_products = products[multi_product_count:]
+        
+        # Create one prompt to combine N products
+        prompts.append(create_multi_product_prompt(page_context, multi_products, persona))
+        
+        # Create individual prompts for remaining products
+        for product in remaining_products:
+            prompts.append(create_editing_prompt(page_context, product.get("name", "Product"), persona))
+    else:
+        # Not enough products for multi-product, create individual prompts for all
+        for product in products:
+            prompts.append(create_editing_prompt(page_context, product.get("name", "Product"), persona))
+    
+    return prompts
 

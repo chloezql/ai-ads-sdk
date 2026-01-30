@@ -35,6 +35,16 @@ export interface MatchedProduct {
   edited_image_url?: string;  // AI-edited image matching page styling
   landing_url: string;
   match_score: number;
+  // Multi-product fields
+  is_multi_product?: boolean;
+  products?: Array<{
+    id: string;
+    name: string;
+    image_url: string;
+    landing_url: string;
+  }>;
+  // Additional landing URLs for multi-product (landing_url_2, landing_url_3, etc.)
+  [key: string]: any;  // Allow dynamic fields like landing_url_2, image_url_2, etc.
 }
 
 export interface ContextResponse {

@@ -27,10 +27,7 @@ export function renderProductAd(element: HTMLElement, product: MatchedProduct): 
   `;
 
   // Create clickable link wrapper
-  const adLink = document.createElement('a');
-  adLink.href = product.landing_url;
-  adLink.target = '_blank';
-  adLink.rel = 'noopener noreferrer sponsored';
+  const adLink = document.createElement('div');
   adLink.style.cssText = `
     text-decoration: none;
     width: 100%;
@@ -38,11 +35,46 @@ export function renderProductAd(element: HTMLElement, product: MatchedProduct): 
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
   `;
 
-  // Track click
-  adLink.addEventListener('click', () => {
-    console.log(`Product ad clicked: ${product.id} -> ${product.landing_url}`);
+  // Handle click - open all landing URLs for multi-product, or single URL for single product
+  adLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    
+    if (product.is_multi_product && product.products) {
+      // Multi-product: open all landing URLs in separate tabs
+      const landingUrls: string[] = [];
+      
+      // Collect all landing URLs from products array
+      product.products.forEach((p: any) => {
+        if (p.landing_url) {
+          landingUrls.push(p.landing_url);
+        }
+      });
+      
+      // Also check for landing_url_2, landing_url_3, etc. (backward compatibility)
+      if (product.landing_url) landingUrls.push(product.landing_url);
+      let i = 2;
+      while (product[`landing_url_${i}`]) {
+        landingUrls.push(product[`landing_url_${i}`]);
+        i++;
+      }
+      
+      // Remove duplicates
+      const uniqueUrls = Array.from(new Set(landingUrls));
+      
+      // Open all URLs in separate tabs
+      uniqueUrls.forEach(url => {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      });
+      
+      console.log(`Multi-product ad clicked: ${product.id} -> opened ${uniqueUrls.length} tabs:`, uniqueUrls);
+    } else {
+      // Single product: open single landing URL
+      window.open(product.landing_url, '_blank', 'noopener,noreferrer');
+      console.log(`Product ad clicked: ${product.id} -> ${product.landing_url}`);
+    }
     // In production, send click event to backend
   });
 
@@ -193,11 +225,8 @@ function renderHorizontalProducts(element: HTMLElement, products: MatchedProduct
       background: transparent;
     `;
 
-    // Create clickable link
-    const productLink = document.createElement('a');
-    productLink.href = product.landing_url;
-    productLink.target = '_blank';
-    productLink.rel = 'noopener noreferrer sponsored';
+    // Create clickable link (div instead of <a> to handle multi-product clicks)
+    const productLink = document.createElement('div');
     productLink.style.cssText = `
       text-decoration: none;
       width: 100%;
@@ -219,9 +248,43 @@ function renderHorizontalProducts(element: HTMLElement, products: MatchedProduct
       productLink.style.opacity = '1';
     });
 
-    // Track click
-    productLink.addEventListener('click', () => {
-      console.log(`Product ${index + 1} clicked: ${product.id} -> ${product.landing_url}`);
+    // Handle click - open all landing URLs for multi-product, or single URL for single product
+    productLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      
+      if (product.is_multi_product && product.products) {
+        // Multi-product: open all landing URLs in separate tabs
+        const landingUrls: string[] = [];
+        
+        // Collect all landing URLs from products array
+        product.products.forEach((p: any) => {
+          if (p.landing_url) {
+            landingUrls.push(p.landing_url);
+          }
+        });
+        
+        // Also check for landing_url_2, landing_url_3, etc. (backward compatibility)
+        if (product.landing_url) landingUrls.push(product.landing_url);
+        let i = 2;
+        while (product[`landing_url_${i}`]) {
+          landingUrls.push(product[`landing_url_${i}`]);
+          i++;
+        }
+        
+        // Remove duplicates
+        const uniqueUrls = Array.from(new Set(landingUrls));
+        
+        // Open all URLs in separate tabs
+        uniqueUrls.forEach(url => {
+          window.open(url, '_blank', 'noopener,noreferrer');
+        });
+        
+        console.log(`Multi-product ad clicked: ${product.id} -> opened ${uniqueUrls.length} tabs:`, uniqueUrls);
+      } else {
+        // Single product: open single landing URL
+        window.open(product.landing_url, '_blank', 'noopener,noreferrer');
+        console.log(`Product ${index + 1} clicked: ${product.id} -> ${product.landing_url}`);
+      }
       // In production, send click event to backend
     });
 
@@ -396,11 +459,8 @@ function renderVerticalProducts(element: HTMLElement, products: MatchedProduct[]
       background: transparent;
     `;
 
-    // Create clickable link
-    const productLink = document.createElement('a');
-    productLink.href = product.landing_url;
-    productLink.target = '_blank';
-    productLink.rel = 'noopener noreferrer sponsored';
+    // Create clickable link (div instead of <a> to handle multi-product clicks)
+    const productLink = document.createElement('div');
     productLink.style.cssText = `
       text-decoration: none;
       width: 100%;
@@ -422,9 +482,43 @@ function renderVerticalProducts(element: HTMLElement, products: MatchedProduct[]
       productLink.style.opacity = '1';
     });
 
-    // Track click
-    productLink.addEventListener('click', () => {
-      console.log(`Product ${index + 1} clicked: ${product.id} -> ${product.landing_url}`);
+    // Handle click - open all landing URLs for multi-product, or single URL for single product
+    productLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      
+      if (product.is_multi_product && product.products) {
+        // Multi-product: open all landing URLs in separate tabs
+        const landingUrls: string[] = [];
+        
+        // Collect all landing URLs from products array
+        product.products.forEach((p: any) => {
+          if (p.landing_url) {
+            landingUrls.push(p.landing_url);
+          }
+        });
+        
+        // Also check for landing_url_2, landing_url_3, etc. (backward compatibility)
+        if (product.landing_url) landingUrls.push(product.landing_url);
+        let i = 2;
+        while (product[`landing_url_${i}`]) {
+          landingUrls.push(product[`landing_url_${i}`]);
+          i++;
+        }
+        
+        // Remove duplicates
+        const uniqueUrls = Array.from(new Set(landingUrls));
+        
+        // Open all URLs in separate tabs
+        uniqueUrls.forEach(url => {
+          window.open(url, '_blank', 'noopener,noreferrer');
+        });
+        
+        console.log(`Multi-product ad clicked: ${product.id} -> opened ${uniqueUrls.length} tabs:`, uniqueUrls);
+      } else {
+        // Single product: open single landing URL
+        window.open(product.landing_url, '_blank', 'noopener,noreferrer');
+        console.log(`Product ${index + 1} clicked: ${product.id} -> ${product.landing_url}`);
+      }
     });
 
     // Create image
